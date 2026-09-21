@@ -1,0 +1,4 @@
+I need a small physics simulation. A Web page/JS environment would be ideal but I also have access to Godot if that would be better.
+The objective is to study the way a prism (a polyhedron--so a pentagonal prism, hexagonal prism, whatever) behaves when rolled like a die. In particular, I want to be able to vary its faces and dimensions, and study how it bounces and rolls when dropped. The ultimategoal is that I would like to understand how "fair" a die with a prismatic shape can be.
+Parameters I would like to be able to vary: number of faces, proportions of the prism, elasticity of the die material, dropping height, initial rotation speed. Importantly, it is needed to see what face it comes to rest on, and in particular whether that's an endcap or square face.
+I would like to be able to see a visual of the simulation as it's happening, but I would also like to be able to quickly simulate many rolls with no visualization to collect statistics.

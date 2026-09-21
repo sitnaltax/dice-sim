@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prismatic Dice Fairness Simulator</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f0f1a;
+      color: #e0e0f0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    header {
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #e94560;
+      letter-spacing: 0.03em;
+    }
+    header .subtitle {
+      font-size: 0.8rem;
+      color: #8888aa;
+    }
+
+    .main-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ---- Controls Panel ---- */
+    .controls-panel {
+      width: 280px;
+      background: #16213e;
+      border-right: 1px solid #0f3460;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .panel-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid #0f3460;
+    }
+    .panel-section h2 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6688cc;
+      margin-bottom: 12px;
+    }
+
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
+    .control-row:last-child { margin-bottom: 0; }
+
+    .ctrl-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      color: #c0c0d8;
+      margin-bottom: 4px;
+    }
+    .ctrl-label .val {
+      font-weight: 600;
+      color: #e94560;
+      min-width: 36px;
+      text-align: right;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #e94560;
+      height: 4px;
+      cursor: pointer;
+    }
+    input[type="number"] {
+      width: 100%;
+      background: #0f1923;
+      border: 1px solid #0f3460;
+      color: #e0e0f0;
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 0.88rem;
+    }
+    input[type="number"]:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 9px 12px;
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: 0.02em;
+    }
+    .btn-primary:hover { background: #c73652; }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:disabled { background: #555; cursor: not-allowed; }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 9px 12px;
+      background: transparent;
+      color: #e94560;
+      border: 1.5px solid #e94560;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      letter-spacing: 0.02em;
+    }
+    .btn-secondary:hover { background: rgba(233, 69, 96, 0.12); }
+    .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Status bar */
+    .status-row {
+      padding: 8px 16px;
+      font-size: 0.8rem;
+    }
+    .status { color: #8888aa; }
+    .status.running { color: #f0a500; }
+    .status.settled { color: #44cc88; }
+    .status.error { color: #e94560; }
+
+    /* Result display */
+    .result-box {
+      background: #0f1923;
+      border: 1.5px solid #0f3460;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 10px 16px;
+    }
+    .result-box.endcap { border-color: #f0a500; }
+    .result-box.side { border-color: #44cc88; }
+    .result-label { font-size: 0.72rem; color: #8888aa; margin-bottom: 4px; }
+    .result-face { font-size: 1rem; font-weight: 700; color: #e0e0f0; }
+
+    /* ---- Canvas area ---- */
+    .canvas-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #sim-canvas {
+      width: 100%;
+      flex: 1;
+      display: block;
+    }
+
+    /* ---- Results area ---- */
+    .results-panel {
+      width: 340px;
+      background: #16213e;
+      border-left: 1px solid #0f3460;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .results-panel h2 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6688cc;
+      padding: 14px 16px 8px;
+      border-bottom: 1px solid #0f3460;
+    }
+
+    #batch-progress {
+      font-size: 0.8rem;
+      color: #8888aa;
+      padding: 8px 16px;
+      min-height: 28px;
+    }
+
+    #result-display { flex-shrink: 0; }
+
+    #batch-table {
+      padding: 8px 12px 16px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    thead th {
+      text-align: left;
+      color: #6688cc;
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 6px 8px;
+      border-bottom: 1px solid #0f3460;
+    }
+    tbody tr td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #0f1923;
+      color: #c0c0d8;
+      vertical-align: middle;
+    }
+    tbody tr.highlight td {
+      color: #ffffff;
+      background: rgba(233, 69, 96, 0.12);
+    }
+    tbody tr.highlight td:first-child {
+      border-left: 3px solid #e94560;
+    }
+    tbody tr.row-endcap td { color: #f0c060; }
+    tbody tr.row-endcap.highlight td { background: rgba(240, 165, 0, 0.15); }
+    tbody tr.row-endcap.highlight td:first-child { border-left-color: #f0a500; }
+
+    .bar-wrap {
+      width: 80px;
+      height: 10px;
+      background: #0f1923;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .bar {
+      height: 100%;
+      background: #e94560;
+      border-radius: 5px;
+      transition: width 0.3s ease;
+    }
+    tbody tr.row-endcap .bar { background: #f0a500; }
+
+    /* Hint */
+    .hint {
+      font-size: 0.75rem;
+      color: #555577;
+      padding: 8px 16px;
+      border-top: 1px solid #0f3460;
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Prismatic Dice Fairness Simulator</h1>
+  <span class="subtitle">Rapier3D physics · Three.js rendering</span>
+</header>
+
+<div class="main-layout">
+
+  <!-- Controls Panel -->
+  <aside class="controls-panel">
+
+    <div class="panel-section">
+      <h2>Die Geometry</h2>
+
+      <div class="control-row">
+        <div class="ctrl-label">
+          <span>Rectangular faces (n)</span>
+          <span class="val" id="val-n">6</span>
+        </div>
+        <input type="range" id="ctrl-n" min="3" max="12" step="1" value="6" />
+      </div>
+
+      <div class="control-row">
+        <div class="ctrl-label">
+          <span>Face length (prism height)</span>
+          <span class="val" id="val-face-length">1.0</span>
+        </div>
+        <input type="range" id="ctrl-face-length" min="0.5" max="3.0" step="0.1" value="1.0" />
+      </div>
+
+      <div class="control-row">
+        <div class="ctrl-label">
+          <span>Circumradius</span>
+          <span class="val" id="val-circumradius">0.5</span>
+        </div>
+        <input type="range" id="ctrl-circumradius" min="0.3" max="1.5" step="0.05" value="0.5" />
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h2>Physics</h2>
+
+      <div class="control-row">
+        <div class="ctrl-label">
+          <span>Elasticity (restitution)</span>
+          <span class="val" id="val-restitution">0.3</span>
+        </div>
+        <input type="range" id="ctrl-restitution" min="0.0" max="0.9" step="0.05" value="0.3" />
+      </div>
+
+      <div class="control-row">
+        <div class="ctrl-label">
+          <span>Drop height</span>
+          <span class="val" id="val-drop-height">3</span>
+        </div>
+        <input type="range" id="ctrl-drop-height" min="1" max="10" step="0.5" value="3" />
+      </div>
+
+      <div class="control-row">
+        <div class="ctrl-label">
+          <span>Initial spin (rad/s)</span>
+          <span class="val" id="val-spin">0</span>
+        </div>
+        <input type="range" id="ctrl-spin" min="0" max="20" step="1" value="0" />
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h2>Batch</h2>
+      <div class="control-row">
+        <div class="ctrl-label"><span>Number of rolls</span></div>
+        <input type="number" id="ctrl-num-rolls" min="1" max="10000" value="100" />
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h2>Actions</h2>
+      <button class="btn-primary" id="btn-drop">&#9654; Drop Die</button>
+      <button class="btn-secondary" id="btn-batch">&#9654;&#9654; Run Batch</button>
+    </div>
+
+    <div class="status-row">
+      <span class="status" id="status">Initializing…</span>
+    </div>
+
+    <div class="hint">Orbit: drag &nbsp;|&nbsp; Zoom: scroll &nbsp;|&nbsp; Pan: right-drag</div>
+  </aside>
+
+  <!-- 3D Canvas -->
+  <div class="canvas-area">
+    <canvas id="sim-canvas"></canvas>
+  </div>
+
+  <!-- Results Panel -->
+  <aside class="results-panel">
+    <h2>Results</h2>
+    <div id="result-display"></div>
+    <div id="batch-progress"></div>
+    <div id="batch-table"></div>
+  </aside>
+
+</div>
+
+<!-- Bootstrap the app -->
+<script type="module">
+  import { initUI } from './ui.js';
+  initUI().catch(err => {
+    console.error('Init failed:', err);
+    document.getElementById('status').textContent = 'Init error: ' + err.message;
+  });
+</script>
+
+</body>
+</html>
